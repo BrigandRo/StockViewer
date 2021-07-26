@@ -19,7 +19,6 @@ namespace StockViewer
         public TextData(RichTextBox textBox)
         {
             this.textBox = textBox;
-            Update_Color(true);
         }
 
         public void Set_FontSize(int fontSize)
@@ -40,19 +39,20 @@ namespace StockViewer
             textBox.Location = new Point((int)cordX, textBox.Location.Y);
         }
 
-        public void Update_Color(bool white)
+        public void Update_Color(Color backColor)
         {
-            this.white = white;
+            white = !white;
             if (white)
             {
-                textBox.BackColor = Color.Black;
+                textBox.BackColor = backColor;
                 textBox.ForeColor = Color.White;
             }
             else
             {
-                textBox.BackColor = Color.White;
+                textBox.BackColor = backColor;
                 textBox.ForeColor = Color.Black;
             }
+            Color_ProcentText();
         }
 
         void Color_ProcentText()

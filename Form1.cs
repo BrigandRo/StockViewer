@@ -11,12 +11,6 @@ namespace StockViewer
 {
     public partial class Form1 : Form
     {
-        [DllImport("user32.dll", SetLastError = true)]
-        static extern UInt32 GetWindowLong(IntPtr hWnd, int nIndex);
-        [DllImport("user32.dll")]
-        static extern int SetWindowLong(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
-
         public static string settings_path = 
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Documents\\StockViewer.json";
 
@@ -41,16 +35,15 @@ namespace StockViewer
                 firstTime = true;
             }
 
-            //Make form unclickable
-            SetWindowLong(this.Handle, -20, (IntPtr)(GetWindowLong(this.Handle, -20) | 0x80000 | 0x20));
             InitializeComponent();
             Init_TextData();
             Set_Form();
-            Change_FormColor();
+            Change_FormColor(Misc.GetColorAt(midPoint));
 
             StartPosition = FormStartPosition.Manual;
             ShowInTaskbar = false;
             TopMost = true;
+            FormBorderStyle = FormBorderStyle.None;
             notifyIcon1.ContextMenuStrip = contextMenuStrip1;
 
             Thread t = new Thread(Update_Loop);
@@ -71,6 +64,7 @@ namespace StockViewer
 
         void Update_Loop()
         {
+            Thread.Sleep(1000);
             while (true)
             {
                 time_now = DateTime.Now;
@@ -81,18 +75,20 @@ namespace StockViewer
 
                 if (price_elapseTime > 2f)
                 {
-                    try { Refresh_Text(); }
-                    catch { client = new HttpClient(); }
-
+                    Refresh_Text();
                     price_elapseTime = 0;
                 }
 
-                if (mouse_elapseTime > 0.1f)
+                if (mouse_elapseTime > 0.2f)
                 {
-                    if (Misc.CheckColor(midPoint) != textData[0].white)
-                        this.Invoke((MethodInvoker)delegate { Change_FormColor(); });
+                    Color backColor = Misc.GetColorAt(midPoint);
+                    if (Misc.ContrastColor(backColor) != textData[0].white)
+                        this.Invoke((MethodInvoker)delegate { Change_FormColor(backColor); });
 
-                    this.Invoke((MethodInvoker)delegate { Check_Mouse(); });
+                    this.Invoke((MethodInvoker)delegate {
+                        Check_Mouse();
+                        Misc.Unclikcable(this.Handle);
+                    });
 
                     mouse_elapseTime = 0;
                 }
@@ -119,7 +115,9 @@ namespace StockViewer
 
         async void Refresh_Text()
         {
-            string html = await client.GetStringAsync("https://query1.finance.yahoo.com/v7/finance/quote?fields=regularMarketPrice,postMarketPrice,preMarketPrice,regularMarketPreviousClose&symbols=" + settings.companies);
+            string html;
+            try { html = await client.GetStringAsync("https://query1.finance.yahoo.com/v7/finance/quote?fields=regularMarketPrice,postMarketPrice,preMarketPrice,regularMarketPreviousClose&symbols=" + settings.companies); }
+            catch { client = new HttpClient(); return; }
 
             YahooData jsonData = JsonConvert.DeserializeObject<YahooData>(html);
             var result = jsonData.quoteResponse.result;
@@ -187,17 +185,13 @@ namespace StockViewer
             this.Opacity = settings.opacity / 100.0f;
         }
 
-        void Change_FormColor()
+        void Change_FormColor(Color backColor)
         {
-            bool black = !textData[0].white;
-            Color color = black ? Color.Black : Color.White;
-
-            BackColor = color;
-            TransparencyKey = color;
-            FormBorderStyle = FormBorderStyle.None;
+            BackColor = backColor;
+            TransparencyKey = backColor;
 
             foreach (var t in textData)
-                t.Update_Color(black);
+                t.Update_Color(backColor);
         }
 
         void Check_Mouse()
